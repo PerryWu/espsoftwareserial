@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <inttypes.h>
 #include <Stream.h>
 
+#define PARITY_MODE_NONE   0
+#define PARITY_MODE_EVEN   1
+#define PARITY_MODE_ODD    2
 
 // This class is compatible with the corresponding AVR one,
 // the constructor however has an optional rx buffer size.
@@ -41,6 +44,7 @@ public:
    void begin(long speed);
    long baudRate();
    void setTransmitEnablePin(int transmitEnablePin);
+   void setParity(uint8_t mode);
 
    bool overflow();
    int peek();
@@ -77,6 +81,7 @@ private:
    unsigned int m_inPos, m_outPos;
    int m_buffSize;
    uint8_t *m_buffer;
+   uint8_t m_parityMode;
 
 };
 

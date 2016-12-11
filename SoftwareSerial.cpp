@@ -72,6 +72,8 @@ SoftwareSerial::SoftwareSerial(int receivePin, int transmitPin, bool inverse_log
    m_invert = inverse_logic;
    m_overflow = false;
    m_rxEnabled = false;
+   m_parityMode = PARITY_MODE_NONE;
+
    if (isValidGPIOpin(receivePin)) {
       m_rxPin = receivePin;
       m_buffSize = buffSize;
@@ -126,6 +128,10 @@ void SoftwareSerial::setTransmitEnablePin(int transmitEnablePin) {
   }
 }
 
+void SoftwareSerial::setParity(uint8_t mode) {
+  m_parityMode = mode;
+}
+
 void SoftwareSerial::enableRx(bool on) {
    if (m_rxValid) {
       if (on)
@@ -153,6 +159,8 @@ int SoftwareSerial::available() {
 #define WAIT { while (ESP.getCycleCount()-start < wait); wait += m_bitTime; }
 
 size_t SoftwareSerial::write(uint8_t b) {
+   uint8_t parity;
+
    if (!m_txValid) return 0;
 
    if (m_invert) b = ~b;
@@ -165,10 +173,28 @@ size_t SoftwareSerial::write(uint8_t b) {
     // Start bit;
    digitalWrite(m_txPin, LOW);
    WAIT;
+   parity = 0;
    for (int i = 0; i < 8; i++) {
+     parity += (b & 1);
      digitalWrite(m_txPin, (b & 1) ? HIGH : LOW);
      WAIT;
      b >>= 1;
+   }
+   if(m_parityMode == PARITY_MODE_EVEN || m_parityMode == PARITY_MODE_ODD) {
+      // Parity bit
+     if(parity & 1) {
+        if(m_parityMode == PARITY_MODE_EVEN)
+          digitalWrite(m_txPin, HIGH);
+        else
+          digitalWrite(m_txPin, LOW);
+     }
+     else {
+        if(m_parityMode == PARITY_MODE_EVEN)
+          digitalWrite(m_txPin, LOW);
+        else
+          digitalWrite(m_txPin, HIGH);
+     }
+     WAIT;
    }
    // Stop bit
    digitalWrite(m_txPin, HIGH);
@@ -206,6 +232,9 @@ void ICACHE_RAM_ATTR SoftwareSerial::rxRead() {
        rec |= 0x80;
    }
    if (m_invert) rec = ~rec;
+   // Parity bit. No checking here... 
+   if(m_parityMode != PARITY_MODE_NONE)
+      WAIT;
    // Stop bit
    WAIT;
    // Store the received value in the buffer unless we have an overflow
